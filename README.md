@@ -53,6 +53,18 @@ void SSD1306_Draw_Bitmap(int16_t x, int16_t y, const uint8_t* bitmap);
 void SSD1306_Draw_Bitmap_Centered(int16_t y, const uint8_t* bitmap);
 ```
 
+To add new bitmaps, perform the following steps:
+1. Draw your on black in white image. Black is color, that will be displayed later on. The dimensions do not matter.
+2. Save the images as .bmp-file
+3. Go to https://javl.github.io/image2cpp/
+4. Upload your bitmap and check 'Invert Image Colors'
+5. Select Code output format: plain bytes
+6. Use Draw Mode: Vertical - 1 bit per pixel
+7. Click "Generate Code"
+8. Copy the generated output to the Bitmap.c file - use the already present bitmaps as example
+9. Add the same bitmap variable declared as "extern" to the Bitmap.h file
+10. You are ready to use your own bitmap
+
 ### Other Library Dependencies
 * I2C Master 
 
