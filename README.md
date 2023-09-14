@@ -71,3 +71,31 @@ To add new bitmaps, perform the following steps:
 ### RP2040 SDK Requirements
 * pico_stdlib
 * hardware_divider
+
+## USB Serial
+Basic Library to exchange data with a serial terminal on a computer. The library includes functions to send text as well as numbers in different formats (Ints and Floats).
+
+In order for this library to work, you need to update you CMakeLists.txt with the following statement before the last line with:
+```
+# enable usb output, disable uart output
+pico_enable_stdio_usb(${projname} 1)
+pico_enable_stdio_uart(${projname} 0)
+```
+
+Within your main, you need to call the function 
+```
+void USB_Serial_Init(void);
+```
+Afterwards you can poll received data using the function
+```
+bool USB_Serial_Available(void);
+```
+Use the send-function to send data to the computer. See the comments in the header-file for further information.
+
+
+### Other Library Dependencies
+_None_
+
+### RP2040 SDK Requirements
+* pico_stdlib
+
