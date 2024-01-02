@@ -72,6 +72,40 @@ To add new bitmaps, perform the following steps:
 * pico_stdlib
 * hardware_divider
 
+## Rotary Encoder
+The Rotary Encoder library consists of a small function to read in and handle rotary encoder switches like a [KY-040](https://www.google.com/search?q=KY-040).
+
+In order to use this function, the GPIOs of the encoder pins need to defined in the Rotary_Encoder.c file. See defines for
+```
+#define ENCODER_PIN_A_GPIO			0
+#define ENCODER_PIN_B_GPIO			1
+#define ENCODER_SWITCH_GPIO			2
+```
+
+It is important to know, that the rotary encoder library uses the Interrupt Service Routine (ISR) for GPIO pins of the RP2040. This is important, as you can have only a single interrupt routine for GPIOs. Within this ISR you can determine, which GPIO caused the interrupt. Additional GPIOs can be added to the already existing ISR. Moving this ISR to another file, requires more effort and is not covered here.
+
+Rotations or clicks of the rotary encoder can be polled by calling the functions
+```
+bool Rotary_Encoder_Rotation_CW_Occurred(void);
+bool Rotary_Encoder_Rotation_CCW_Occurred(void)
+bool Rotary_Encoder_Switch_Press_Occurred(void)
+```
+
+If an event has occurred, 'true' will be returned by these functions, 'false' otherwise.
+
+Do not forget to call 
+```
+void Rotary_Encoder_Init(void);
+```
+before using polling for events.
+
+### Other Library Dependencies
+_None_
+
+### RP2040 SDK Requirements
+* pico_stdlib
+* hardware_irq
+
 ## USB Serial
 Basic Library to exchange data with a serial terminal on a computer. The library includes functions to send text as well as numbers in different formats (Ints and Floats).
 
