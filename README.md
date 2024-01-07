@@ -72,6 +72,49 @@ To add new bitmaps, perform the following steps:
 * pico_stdlib
 * hardware_divider
 
+## OLED SSD11306 Screen Concept
+
+The idea of the Screen Concept is to have an abstraction of the different views you can display on the OLED11306. Meaning, you want have one .c-file per view or screen. Each .c-file is structured to have a setup-function with a unique name and several static functions to be called, when events occur. With events, I refer to the rotary encoder functions for rotation CW/CCW or click. Additionally, there is a tick-function to be called periodically, to update the contents (e.g. a number or text) of the current view.
+
+But let's go step by step:
+1. Checked in are two screens (Screen_0.c and Screen_1.c). Both screens have a unique setup function (void Screen_Setup_0(...)/ void Screen_Setup_1(...)). When a setup-function is called, a number of function pointers are being updated:
+   - void Screen_Action_CW(void),
+   - void Screen_Action_CCW(void), 
+   - void Screen_Action_Click(void) and the tick-function
+   - void Screen_Tick(void).
+
+2. All of these function pointers now point to the repective function of the current view. This allows to generally call screen function, without checking what screen is currently being displayed.
+
+3. The function pointers are called from also checked in main.c-file. In the beginning of the main-functions, the different peripherals are being initalized. In this case, starting with I2C as master followed by the SSD1306 library. Then direclty, the setup function of the initial screen (is this case Screen_0) is called. This is mandatory in order to initialze the screen related functions pointers. The rotary encoder is initialized next.
+
+    The last step of the initialization should be the repeating timer, to trigger screen updates. In this example, the timer is set to a period of 40 ms. This results in 25 ticks per second, or in other words to 25 FPS.
+
+4. Every time this repeating timer has fired (see while-loop in main.c), the OLED display buffer is transferred via I2C to the display. This transfer is done using DMA, meaning barely any CPU time is required. 
+
+5. When the DMA transfer via I2C has been completed, the tick-function of the current screen is called (remember that the call is done via a function pointer). In the tick-function, the local screen buffer are mean to be updated and be written. In this example, nothing is written on the screen. It is recommended, before wirting new content to the screen buffer to clear the screen buffer avoiding any artifacts.
+
+   > [!IMPORTANT]
+   > DMA Transfer and tick-function both need to be completed with the period time of the repeating time. 40ms is usually more than sufficient. Reducing the period time for the sake of more FPS needs to carefully handled and verified.
+
+6. While the repeating timer has not fired and the DMA Transfer is not just completed, any other tasks can be performed. In this example only the rotary encoder events are being polled and the according screen event-function are being called in case an event happened.
+
+   Feel free to add your own function here. If there is CPU intensive stuff to be handled, I recommend to move that to the second core of the RP2040.
+
+7. The Screens-h-file contains the list of all existing screen setup-functions. So, if you add another screen, you need to add the unqiue name of the new screen to this file, in order to make it available to other screens.
+
+8. The file Screen_Variables.c only contains the actual function-pointers definitions and should not be changed.
+
+9. When calling another screen, you can define an transition effect. With the current version of the OLED library only linear motions to left/right/up/down are possible. Of, course the animation can also be skipped.
+
+10. To my experience, you may end up with a bunch of screen files, when implementing a menu structure or whatever. You for info here.
+
+### Other Library Dependencies
+* OLED SSD1306
+* Rotary Encoder
+
+### RP2040 SDK Requirements
+* pico_stdlib
+
 ## Rotary Encoder
 The Rotary Encoder library consists of a small function to read in and handle rotary encoder switches like a [KY-040](https://www.google.com/search?q=KY-040).
 
