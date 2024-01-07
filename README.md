@@ -125,6 +125,8 @@ In order to use this function, the GPIOs of the encoder pins need to defined in 
 #define ENCODER_SWITCH_GPIO			2
 ```
 
+I also added a picture of the schematic I usually use to connect a rotary encoder to the RP2040. This works quite fine and reliably with this library.
+
 It is important to know, that the rotary encoder library uses the Interrupt Service Routine (ISR) for GPIO pins of the RP2040. This is important, as you can have only a single interrupt routine for GPIOs. Within this ISR you can determine, which GPIO caused the interrupt. Additional GPIOs can be added to the already existing ISR. Moving this ISR to another file, requires more effort and is not covered here.
 
 Rotations or clicks of the rotary encoder can be polled by calling the functions
