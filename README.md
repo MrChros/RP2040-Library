@@ -183,3 +183,8 @@ _None_
 ### RP2040 SDK Requirements
 * pico_stdlib
 
+# Tools
+The subfolder "Tools" contains various helpful script and tools to help with projects for the RP2040. I use common Windows as my OS, simply because I am used to. If you use another OS, some scripts may need to be adjusted or re-written. I personally like batch script very much, so I use it a lot. I have no idea, if these can be converted or used in e.g. Linux or Mac directly.
+
+## Font to Byte Array
+*Description pending...*
