@@ -72,9 +72,9 @@ To add new bitmaps, perform the following steps:
 * pico_stdlib
 * hardware_divider
 
-## OLED SSD11306 Screen Concept
+## OLED SSD1306 Screen Concept
 
-The idea of the Screen Concept is to have an abstraction of the different views you can display on the OLED11306. Meaning, you want have one .c-file per view or screen. Each .c-file is structured to have a setup-function with a unique name and several static functions to be called, when events occur. With events, I refer to the rotary encoder functions for rotation CW/CCW or click. Additionally, there is a tick-function to be called periodically, to update the contents (e.g. a number or text) of the current view.
+The idea of the Screen Concept is to have an abstraction of the different views you can display on the OLED1306. Meaning, you want have one .c-file per view or screen. Each .c-file is structured to have a setup-function with a unique name and several static functions to be called, when events occur. With events, I refer to the rotary encoder functions for rotation CW/CCW or click. Additionally, there is a tick-function to be called periodically, to update the contents (e.g. a number or text) of the current view.
 
 But let's go step by step:
 1. Checked in are two screens (Screen_0.c and Screen_1.c). Both screens have a unique setup function (void Screen_Setup_0(...)/ void Screen_Setup_1(...)). When a setup-function is called, a number of function pointers are being updated:
