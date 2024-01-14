@@ -1,8 +1,13 @@
 # RP2040-Library
 
-These is my self created libraries for the RP2040. I use the libraries for my personal projects, so do not expect professional code.
-Please consider that this repository has been set up short term, so there is not a lot of explanation. In case of questions, don't hestitate
-to contact me or to raise a ticket here in GitHUB.
+These is my self created libraries for the RP2040. I use the libraries for my personal projects, so do not expect professional code. Please consider that this repository has been set up short term, so there is not a lot of explanation. In case of questions, don't hestitate to contact me or to raise a ticket here in GitHUB.
+
+The code is not properly documented. There are some comments, but not much. In general, I tried to wrote code, which is readable as much as possible without comments. So, names of functions and variables are longer and use whole words instead of unclear abbreviations (except for the very known ones). Some general naming conventions I would like to point out, so make the code more readable:
+- Global variables always start with an underscore ("_")
+- Defines are writte uppercase, except for units like milliseconds (ms) or something similar
+- Argument variables of functions are written always lowercase 
+- Locally defined variables start with a uppercase letter of each word
+
 The following libraries are included:
 
 ## I2C Master
