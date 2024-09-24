@@ -9,11 +9,11 @@
 // Includes
 #include "OLED_SSD1306.h"
 
+#include <math.h>
 #include <string.h>
 #include "hardware/divider.h"
 
 #include "I2C_Master.h"
-#include "USB_Serial.h"
 
 
 // ============================================================================================
@@ -99,12 +99,13 @@ struct OLED_SSD1306_BUFFER
 
 static struct OLED_SSD1306_BUFFER 	_Display_Buffer;
 static const unsigned char*			_Font;
-static uint							_Animation_Direction;
-static int16_t						_Animation_Offset_X;
-static int16_t						_Animation_Offset_Y;
-static uint							_Animation_Step;
-static uint8_t 						_Animation_Horizontal_Steps[] 	= { 35, 27, 20, 14, 10, 7, 5, 3, 2, 2, 1, 1, 1 };
-static uint8_t 						_Animation_Vertical_Steps[] 	= { 16, 13, 10, 8, 6, 4, 3, 2, 1, 1 };
+static uint							_Screen_Transition_Direction;
+static int16_t						_Screen_Transition_Offset_X;
+static int16_t						_Screen_Transition_Offset_Y;
+static Screen_Transition_Type 		_Screen_Transition_Type;
+static uint 						_Screen_Transition_Duration;
+static uint							_Screen_Transition_Step;
+static uint							_Screen_Transition_Position;
 
 static const uint8_t FONT_DEF_LENGTH	   	= 0;	
 static const uint8_t FONT_DEF_FIXED_WIDTH 	= 2;
@@ -132,18 +133,52 @@ void SSD1306_Buffer_UINT642Column(uint column_number, uint64_t buffer_column);
 
 void SSD1306_Draw_Line_Thin(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
 
+float SSD1306_Transition_Linear(float x);
+
+float SSD1306_Transition_Ease_In_Sine(float x);
+float SSD1306_Transition_Ease_Out_Sine(float x);
+float SSD1306_Transition_Ease_InOut_Sine(float x);
+
+float SSD1306_Transition_Ease_In_Quad(float x);
+float SSD1306_Transition_Ease_Out_Quad(float x);
+float SSD1306_Transition_Ease_InOut_Quad(float x);
+
+float SSD1306_Transition_Ease_In_Cubic(float x);
+float SSD1306_Transition_Ease_Out_Cubic(float x);
+float SSD1306_Transition_Ease_InOut_Cubic(float x);
+
+float SSD1306_Transition_Ease_In_Quart(float x);
+float SSD1306_Transition_Ease_Out_Quart(float x);
+float SSD1306_Transition_Ease_InOut_Quart(float x);
+
+float SSD1306_Transition_Ease_In_Quint(float x);
+float SSD1306_Transition_Ease_Out_Quint(float x);
+float SSD1306_Transition_Ease_InOut_Quint(float x);
+
+float SSD1306_Transition_Ease_In_Expo(float x);
+float SSD1306_Transition_Ease_Out_Expo(float x);
+float SSD1306_Transition_Ease_InOut_Expo(float x);
+
+float SSD1306_Transition_Ease_In_Circ(float x);
+float SSD1306_Transition_Ease_Out_Circ(float x);
+float SSD1306_Transition_Ease_InOut_Circ(float x);
+
 
 /*******************************************************************
 	Public Functions
 *******************************************************************/
-void SSD1306_Init()
+void SSD1306_Init(bool do_rotate_180)
 {
-	_Font					= NULL;
-	_Invert_Enabled 		= false;
-	_Update_Pending			= false;
-	_Animation_Direction 	= ANIMATION_NONE;
-	_Animation_Offset_X		= 0;
-	_Animation_Offset_Y		= 0;
+	_Font							= NULL;
+	_Invert_Enabled 				= false;
+	_Update_Pending					= false;
+	_Screen_Transition_Direction 	= TRANSITION_NONE;
+	_Screen_Transition_Offset_X		= 0;
+	_Screen_Transition_Offset_Y		= 0;
+	_Screen_Transition_Type			= TRANSITION_LINEAR;
+	_Screen_Transition_Duration		= 0;
+	_Screen_Transition_Step			= 0;
+	_Screen_Transition_Position		= 0;
 
 	sleep_ms(20);
 	SSD1306_Send_Command(SSD1306_DISPLAY_OFF);
@@ -158,8 +193,14 @@ void SSD1306_Init()
 //	SSD1306_Send_Command(0x14);
 	SSD1306_Send_Command(SSD1306_MEMORY_ADDR_MODE);
 	SSD1306_Send_Command(0x00);
-	SSD1306_Send_Command(SSD1306_SET_SEGMENT_REMAP | 0x1);
-	SSD1306_Send_Command(SSD1306_COM_SCAN_DIR_DEC);
+	SSD1306_Send_Command(SSD1306_SET_SEGMENT_REMAP | (uint8_t)(!do_rotate_180));
+
+	if(do_rotate_180 == true) {
+		SSD1306_Send_Command(SSD1306_COM_SCAN_DIR_INC);
+	} else {
+		SSD1306_Send_Command(SSD1306_COM_SCAN_DIR_DEC);
+	}
+
 	SSD1306_Send_Command(SSD1306_SET_COM_PINS);
 	SSD1306_Send_Command(0x02 | (SSD1306_HEIGHT >> 1));	// 0x12 for 64px; 0x02 for 32px
 	SSD1306_Send_Command(SSD1306_SET_CONTRAST_CONTROL);
@@ -230,108 +271,204 @@ bool SSD1306_Transmit_Completed()
 	return I2CM_DMA_Transmit_Complete();
 }
 
-void SSD1306_Animation_Start(uint direction)
+void SSD1306_Transition_Start(uint direction, Screen_Transition_Type type, uint frame_duration)
 {
-	_Animation_Offset_X = 0;
-	_Animation_Offset_Y = 0;
+	_Screen_Transition_Offset_X 	= 0;
+	_Screen_Transition_Offset_Y 	= 0;
+	_Screen_Transition_Direction 	= TRANSITION_NONE;
+	_Screen_Transition_Type 		= type;
+	_Screen_Transition_Duration 	= frame_duration;
+	_Screen_Transition_Step 		= 0;
+	_Screen_Transition_Position 	= 0;
 	
-	switch (direction)
-	{
-	case ANIMATION_DIRECTION_LEFT:
-		_Animation_Direction 	= ANIMATION_DIRECTION_LEFT;
-		_Animation_Offset_X		= SSD1306_PIXEL_WIDTH;
-		break;
-	
-	case ANIMATION_DIRECTION_RIGHT:
-		_Animation_Direction 	= ANIMATION_DIRECTION_RIGHT;
-		_Animation_Offset_X 	= -SSD1306_PIXEL_WIDTH;
-		break;
-
-	case ANIMATION_DIRECTION_UP:
-		_Animation_Direction 	= ANIMATION_DIRECTION_UP;
-		_Animation_Offset_Y		= SSD1306_PIXEL_HEIGHT;
-		break;
-	
-	case ANIMATION_DIRECTION_DOWN:
-		_Animation_Direction 	= ANIMATION_DIRECTION_DOWN;
-		_Animation_Offset_Y		= -SSD1306_PIXEL_HEIGHT;
-		break;
-
-	default:
-		_Animation_Direction 	= ANIMATION_NONE;
-		break;
-	}
-
-	_Animation_Step = 0;
-}
-
-void SSD1306_Animation_Tick()
-{
-	if(_Animation_Direction == ANIMATION_NONE) {
+	if(_Screen_Transition_Duration == 0) {
 		return;
 	}
 	
-	switch (_Animation_Direction)
+	switch (direction)
 	{
-	case ANIMATION_DIRECTION_LEFT:
-		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
-			SSD1306_Buffer_Shift_Left(_Animation_Horizontal_Steps[_Animation_Step]);
-			_Animation_Offset_X -= _Animation_Horizontal_Steps[_Animation_Step];
-			_Animation_Step++;
-		} else if(_Animation_Offset_X > 0) {
-			SSD1306_Buffer_Shift_Left(1);
-			_Animation_Offset_X -= 1;
-		} else {
-			_Animation_Direction 	= ANIMATION_NONE;
-			_Animation_Offset_X 	= 0;
-		}
+	case TRANSITION_DIRECTION_LEFT:
+		_Screen_Transition_Offset_X		= SSD1306_PIXEL_WIDTH;
+		_Screen_Transition_Direction 	= TRANSITION_DIRECTION_LEFT;
+		break;
+	
+	case TRANSITION_DIRECTION_RIGHT:
+		_Screen_Transition_Offset_X 	= -SSD1306_PIXEL_WIDTH;
+		_Screen_Transition_Direction 	= TRANSITION_DIRECTION_RIGHT;
 		break;
 
-	case ANIMATION_DIRECTION_RIGHT:
-		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
-			SSD1306_Buffer_Shift_Right(_Animation_Horizontal_Steps[_Animation_Step]);
-			_Animation_Offset_X += _Animation_Horizontal_Steps[_Animation_Step];
-			_Animation_Step++;
-		} else if(_Animation_Offset_X < 0) {
-			SSD1306_Buffer_Shift_Right(1);
-			_Animation_Offset_X += 1;
-		} else {
-			_Animation_Direction 	= ANIMATION_NONE;
-			_Animation_Offset_X 	= 0;
-		}
+	case TRANSITION_DIRECTION_UP:
+		_Screen_Transition_Offset_Y		= SSD1306_PIXEL_HEIGHT;
+		_Screen_Transition_Direction 	= TRANSITION_DIRECTION_UP;
 		break;
-
-	case ANIMATION_DIRECTION_UP:
-		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
-			SSD1306_Buffer_Shift_Up(_Animation_Vertical_Steps[_Animation_Step]);
-			_Animation_Offset_Y -= _Animation_Vertical_Steps[_Animation_Step];
-			_Animation_Step++;
-		} else if(_Animation_Offset_Y > 0) {
-			SSD1306_Buffer_Shift_Up(1);
-			_Animation_Offset_Y -= 1;
-		} else {
-			_Animation_Direction = ANIMATION_NONE;
-			_Animation_Offset_Y = 0;
-		}
-		break;
-
-	case ANIMATION_DIRECTION_DOWN:
-		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
-			SSD1306_Buffer_Shift_Down(_Animation_Vertical_Steps[_Animation_Step]);
-			_Animation_Offset_Y += _Animation_Vertical_Steps[_Animation_Step];
-			_Animation_Step++;
-		} else if(_Animation_Offset_Y < 0) {
-			SSD1306_Buffer_Shift_Down(1);
-			_Animation_Offset_Y += 1;
-		} else {
-			_Animation_Direction = ANIMATION_NONE;
-			_Animation_Offset_Y = 0;
-		}
+	
+	case TRANSITION_DIRECTION_DOWN:
+		_Screen_Transition_Offset_Y		= -SSD1306_PIXEL_HEIGHT;
+		_Screen_Transition_Direction 	= TRANSITION_DIRECTION_DOWN;
 		break;
 
 	default:
 		break;
 	}
+}
+
+void SSD1306_Transition_Tick()
+{
+	if(_Screen_Transition_Direction == TRANSITION_NONE) {
+		return;
+	}
+	float Transition_X = ((float)_Screen_Transition_Step) / ((float)_Screen_Transition_Duration);
+	float New_Percent = 0.0f;
+	
+	switch (_Screen_Transition_Type)
+	{
+	case TRANSITION_LINEAR: 			New_Percent = SSD1306_Transition_Linear(Transition_X); 				break;
+
+	case TRANSITION_EASE_IN_SINE: 		New_Percent = SSD1306_Transition_Ease_In_Sine(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_SINE: 		New_Percent = SSD1306_Transition_Ease_Out_Sine(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_SINE: 	New_Percent = SSD1306_Transition_Ease_InOut_Sine(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_QUAD: 		New_Percent = SSD1306_Transition_Ease_In_Quad(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_QUAD: 		New_Percent = SSD1306_Transition_Ease_Out_Quad(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_QUAD: 	New_Percent = SSD1306_Transition_Ease_InOut_Quad(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_CUBIC: 		New_Percent = SSD1306_Transition_Ease_In_Cubic(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_CUBIC: 	New_Percent = SSD1306_Transition_Ease_Out_Cubic(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_CUBIC: 	New_Percent = SSD1306_Transition_Ease_InOut_Cubic(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_QUART: 		New_Percent = SSD1306_Transition_Ease_In_Quart(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_QUART: 	New_Percent = SSD1306_Transition_Ease_Out_Quart(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_QUART: 	New_Percent = SSD1306_Transition_Ease_InOut_Quart(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_QUINT: 		New_Percent = SSD1306_Transition_Ease_In_Quint(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_QUINT: 	New_Percent = SSD1306_Transition_Ease_Out_Quint(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_QUINT: 	New_Percent = SSD1306_Transition_Ease_InOut_Quint(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_EXPO: 		New_Percent = SSD1306_Transition_Ease_In_Expo(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_EXPO: 		New_Percent = SSD1306_Transition_Ease_Out_Expo(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_EXPO: 	New_Percent = SSD1306_Transition_Ease_InOut_Expo(Transition_X); 	break;
+
+	case TRANSITION_EASE_IN_CIRC: 		New_Percent = SSD1306_Transition_Ease_In_Circ(Transition_X); 		break;
+	case TRANSITION_EASE_OUT_CIRC: 		New_Percent = SSD1306_Transition_Ease_Out_Circ(Transition_X); 		break;
+	case TRANSITION_EASE_INOUT_CIRC: 	New_Percent = SSD1306_Transition_Ease_InOut_Circ(Transition_X); 	break;
+	
+	default:
+		_Screen_Transition_Offset_X = 0;
+		_Screen_Transition_Offset_Y = 0;
+		_Screen_Transition_Direction = TRANSITION_NONE;
+		return;
+	}
+
+	int16_t Position_Target = 0;
+
+	switch (_Screen_Transition_Direction)
+	{
+		case TRANSITION_DIRECTION_LEFT:
+		case TRANSITION_DIRECTION_RIGHT:
+			Position_Target = SSD1306_PIXEL_WIDTH;
+			break;
+
+		case TRANSITION_DIRECTION_UP:
+		case TRANSITION_DIRECTION_DOWN:
+			Position_Target = SSD1306_HEIGHT;
+			break;
+
+		default:
+			_Screen_Transition_Offset_X = 0;
+			_Screen_Transition_Offset_Y = 0;
+			_Screen_Transition_Direction = TRANSITION_NONE;
+			return;
+	}
+
+	int16_t New_Position = (uint)(New_Percent * Position_Target);
+	int16_t Shift_Step = New_Position - _Screen_Transition_Position;
+
+	switch (_Screen_Transition_Direction)
+	{
+		case TRANSITION_DIRECTION_LEFT:		SSD1306_Buffer_Shift_Left(Shift_Step);	_Screen_Transition_Offset_X -= Shift_Step;	break;
+		case TRANSITION_DIRECTION_RIGHT:	SSD1306_Buffer_Shift_Right(Shift_Step);	_Screen_Transition_Offset_X += Shift_Step;	break;
+		case TRANSITION_DIRECTION_UP:		SSD1306_Buffer_Shift_Up(Shift_Step);	_Screen_Transition_Offset_Y -= Shift_Step;	break;
+		case TRANSITION_DIRECTION_DOWN:		SSD1306_Buffer_Shift_Down(Shift_Step);	_Screen_Transition_Offset_Y += Shift_Step;	break;
+	}
+
+	if(New_Position >= Position_Target) {
+		_Screen_Transition_Offset_X = 0;
+		_Screen_Transition_Offset_Y = 0;
+		_Screen_Transition_Direction = TRANSITION_NONE;
+	}
+
+	_Screen_Transition_Step++;
+	_Screen_Transition_Position = New_Position;
+
+
+
+
+// 	switch (_Animation_Direction)
+// 	{
+// 	case ANIMATION_DIRECTION_LEFT:
+// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
+// 			SSD1306_Buffer_Shift_Left(_Animation_Horizontal_Steps[_Animation_Step]);
+// 			_Animation_Offset_X -= _Animation_Horizontal_Steps[_Animation_Step];
+// 			_Animation_Step++;
+// 		} else if(_Animation_Offset_X > 0) {
+// 			SSD1306_Buffer_Shift_Left(1);
+// 			_Animation_Offset_X -= 1;
+// 		} else {
+// 			_Animation_Direction 	= ANIMATION_NONE;
+// 			_Animation_Offset_X 	= 0;
+// 		}
+// 		break;
+
+// 	case ANIMATION_DIRECTION_RIGHT:
+// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
+// 			SSD1306_Buffer_Shift_Right(_Animation_Horizontal_Steps[_Animation_Step]);
+// 			_Animation_Offset_X += _Animation_Horizontal_Steps[_Animation_Step];
+// 			_Animation_Step++;
+// 		} else if(_Animation_Offset_X < 0) {
+// 			SSD1306_Buffer_Shift_Right(1);
+// 			_Animation_Offset_X += 1;
+// 		} else {
+// 			_Animation_Direction 	= ANIMATION_NONE;
+// 			_Animation_Offset_X 	= 0;
+// 		}
+// 		break;
+
+// 	case ANIMATION_DIRECTION_UP:
+// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
+// 			SSD1306_Buffer_Shift_Up(_Animation_Vertical_Steps[_Animation_Step]);
+// 			_Animation_Offset_Y -= _Animation_Vertical_Steps[_Animation_Step];
+// 			_Animation_Step++;
+// 		} else if(_Animation_Offset_Y > 0) {
+// 			SSD1306_Buffer_Shift_Up(1);
+// 			_Animation_Offset_Y -= 1;
+// 		} else {
+// 			_Animation_Direction = ANIMATION_NONE;
+// 			_Animation_Offset_Y = 0;
+// 		}
+// 		break;
+
+// 	case ANIMATION_DIRECTION_DOWN:
+// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
+// 			SSD1306_Buffer_Shift_Down(_Animation_Vertical_Steps[_Animation_Step]);
+// 			_Animation_Offset_Y += _Animation_Vertical_Steps[_Animation_Step];
+// 			_Animation_Step++;
+// 		} else if(_Animation_Offset_Y < 0) {
+// 			SSD1306_Buffer_Shift_Down(1);
+// 			_Animation_Offset_Y += 1;
+// 		} else {
+// 			_Animation_Direction = ANIMATION_NONE;
+// 			_Animation_Offset_Y = 0;
+// 		}
+// 		break;
+
+// 	default:
+// 		break;
+// 	}
+}
+
+bool SSD1306_Transition_Ongoing()
+{
+	return _Screen_Transition_Direction != TRANSITION_NONE;
 }
 
 void SSD1306_Set_Font(const uint8_t* font)
@@ -348,6 +485,15 @@ uint SSD1306_Get_Font_Width(void)
 	return _Font[FONT_DEF_FIXED_WIDTH];
 }
 
+uint SSD1306_Get_Font_Height(void)
+{
+	if(_Font == NULL) {
+		return 0;
+	}
+
+	return _Font[FONT_DEF_HEIGHT];
+}
+
 void SSD1306_Set_Invert_Enabled(bool invert_enabled)
 {
 	_Invert_Enabled = invert_enabled;
@@ -356,6 +502,11 @@ void SSD1306_Set_Invert_Enabled(bool invert_enabled)
 uint SSD1306_Get_Width(void)
 {
 	return SSD1306_PIXEL_WIDTH;
+}
+
+uint SSD1306_Get_Height(void)
+{
+	return SSD1306_PIXEL_HEIGHT;
 }
 
 uint16_t SSD1306_Get_Display_Data(int16_t page, int16_t x)
@@ -368,7 +519,7 @@ uint16_t SSD1306_Get_Display_Data(int16_t page, int16_t x)
 
 void SSD1306_Clear(bool skip_while_animation)
 {
-	if(skip_while_animation == true && _Animation_Direction != ANIMATION_NONE) {
+	if(skip_while_animation == true && _Screen_Transition_Direction != TRANSITION_NONE) {
 		return;
 	}
 	
@@ -893,8 +1044,8 @@ void SSD1306_Draw_Circle_Filled(int16_t x, int16_t y, uint16_t radius)
 *******************************************************************/
 void SSD1306_Set_Pixel_Column(int16_t x, int16_t y, uint8_t pixel_column)
 {
-	x += _Animation_Offset_X;
-	y += _Animation_Offset_Y;
+	x += _Screen_Transition_Offset_X;
+	y += _Screen_Transition_Offset_Y;
 	
 	if(x < 0 						|| x >= SSD1306_PIXEL_WIDTH) 	{ return; }
 	if(y < -(SSD1306_PAGE_HEIGHT-1) || y >= SSD1306_PIXEL_HEIGHT) 	{ return; } 
@@ -909,8 +1060,8 @@ void SSD1306_Set_Pixel_Column(int16_t x, int16_t y, uint8_t pixel_column)
 	}
 	else
 	{
-		x -= _Animation_Offset_X;
-		y -= _Animation_Offset_Y;
+		x -= _Screen_Transition_Offset_X;
+		y -= _Screen_Transition_Offset_Y;
 		for(int16_t i;i<SSD1306_PAGE_HEIGHT;i++)
 		{
 			SSD1306_Set_Pixel(x, y+i, (pixel_column & (1 << i)) > 0);
@@ -920,8 +1071,8 @@ void SSD1306_Set_Pixel_Column(int16_t x, int16_t y, uint8_t pixel_column)
 
 void SSD1306_Set_Pixel(int16_t x, int16_t y, bool value)
 {
-	x += _Animation_Offset_X;
-	y += _Animation_Offset_Y;
+	x += _Screen_Transition_Offset_X;
+	y += _Screen_Transition_Offset_Y;
 
 	if(x < 0 || x >= SSD1306_PIXEL_WIDTH) 	{ return; }
 	if(y < 0 || y >= SSD1306_PIXEL_HEIGHT) 	{ return; } 
@@ -1099,4 +1250,213 @@ void SSD1306_Draw_Line_Thin(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 			err += dx;
 		}
 	}
+}
+
+float SSD1306_Transition_Linear(float x)
+{
+	if(x <= 1.0f) {
+		return x;
+	}
+
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_In_Sine(float x)
+{
+	if(x <= 1.0f) {
+		return (float)( 1 - cos((x * M_PI) / 2.0f));
+	}
+
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Sine(float x)
+{
+	if(x <= 1.0f) {
+		return (float)(sin((x * M_PI) / 2.0f));
+	}
+
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Sine(float x)
+{
+	if(x <= 1.0f) {
+		return (float)(-(cos(M_PI * x) - 1.0) / 2.0);
+	}
+
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_In_Quad(float x)
+{
+	if(x <= 1.0f) {
+		return x * x;
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Quad(float x)
+{
+	if(x <= 1.0f) {
+		return 1 - (1 - x) * (1 - x);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Quad(float x)
+{
+	if(x <= 1.0f) {
+		return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_In_Cubic(float x)
+{
+	if(x <= 1.0f) {
+		return x * x * x;
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Cubic(float x)
+{
+	if(x <= 1.0f) {
+		return 1 - pow(1 - x, 3);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Cubic(float x)
+{
+	if(x <= 1.0f) {
+		return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
+	}
+	
+	return 1.0f;
+}
+
+
+float SSD1306_Transition_Ease_In_Quart(float x)
+{
+	if(x <= 1.0f) {
+		return x * x * x * x;
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Quart(float x)
+{
+	if(x <= 1.0f) {
+		return 1 - pow(1 - x, 4);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Quart(float x)
+{
+	if(x <= 1.0f) {
+		return x < 0.5 ? 8 * x * x * x * x : 1 - pow(-2 * x + 2, 4) / 2;
+	}
+	
+	return 1.0f;
+}
+
+
+float SSD1306_Transition_Ease_In_Quint(float x)
+{
+	if(x <= 1.0f) {
+		return x * x * x * x * x;
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Quint(float x)
+{
+	if(x <= 1.0f) {
+		return 1 - pow(1 - x, 5);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Quint(float x)
+{
+	if(x <= 1.0f) {
+		return x < 0.5 ? 16 * x * x * x * x * x : 1 - pow(-2 * x + 2, 5) / 2;
+	}
+	
+	return 1.0f;
+}
+
+
+float SSD1306_Transition_Ease_In_Expo(float x)
+{
+	if(x <= 1.0f) {
+		return x == 0 ? 0 : pow(2, 10 * x - 10);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Expo(float x)
+{
+	if(x <= 1.0f) {
+		return x == 1 ? 1 : 1 - pow(2, -10 * x);
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Expo(float x)
+{
+	if(x <= 1.0f) {
+		return x == 0
+			? 0
+			: x == 1
+			? 1
+			: x < 0.5 ? pow(2, 20 * x - 10) / 2
+			: (2 - pow(2, -20 * x + 10)) / 2;
+	}
+	
+	return 1.0f;
+}
+
+
+float SSD1306_Transition_Ease_In_Circ(float x)
+{
+	if(x <= 1.0f) {
+		return 1 - sqrt(1 - pow(x, 2));
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_Out_Circ(float x)
+{
+	if(x <= 1.0f) {
+		return sqrt(1 - pow(x - 1, 2));
+	}
+	
+	return 1.0f;
+}
+
+float SSD1306_Transition_Ease_InOut_Circ(float x)
+{
+	if(x <= 1.0f) {
+		return x < 0.5
+			? (1 - sqrt(1 - pow(2 * x, 2))) / 2
+			: (sqrt(1 - pow(-2 * x + 2, 2)) + 1) / 2;
+	}
+	
+	return 1.0f;
 }

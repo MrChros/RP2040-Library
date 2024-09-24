@@ -24,34 +24,74 @@
 #define SSD1306_HEIGHT_32PX			0b000000
 #define SSD1306_HEIGHT_64PX			0b100000
 
-#define SSD1306_HEIGHT				SSD1306_HEIGHT_64PX
+#define SSD1306_HEIGHT				SSD1306_HEIGHT_32PX
 
 #ifndef SSD1306_HEIGHT
 #error SSD1306: Height for display has not been defined
 #endif
 
-#define ANIMATION_NONE				0
-#define ANIMATION_DIRECTION_LEFT	1
-#define ANIMATION_DIRECTION_RIGHT	2
-#define ANIMATION_DIRECTION_UP		3
-#define ANIMATION_DIRECTION_DOWN	4
+#define TRANSITION_NONE				0
+#define TRANSITION_DIRECTION_LEFT	1
+#define TRANSITION_DIRECTION_RIGHT	2
+#define TRANSITION_DIRECTION_UP		3
+#define TRANSITION_DIRECTION_DOWN	4
+
+
+// ============================================================================================
+// Datatypes
+typedef enum {
+	TRANSITION_LINEAR,
+
+	TRANSITION_EASE_IN_SINE,
+	TRANSITION_EASE_OUT_SINE,
+	TRANSITION_EASE_INOUT_SINE,
+
+	TRANSITION_EASE_IN_QUAD,
+	TRANSITION_EASE_OUT_QUAD,
+	TRANSITION_EASE_INOUT_QUAD,
+
+	TRANSITION_EASE_IN_CUBIC,
+	TRANSITION_EASE_OUT_CUBIC,
+	TRANSITION_EASE_INOUT_CUBIC,
+	
+	TRANSITION_EASE_IN_QUART,
+	TRANSITION_EASE_OUT_QUART,
+	TRANSITION_EASE_INOUT_QUART,
+	
+	TRANSITION_EASE_IN_QUINT,
+	TRANSITION_EASE_OUT_QUINT,
+	TRANSITION_EASE_INOUT_QUINT,
+
+	TRANSITION_EASE_IN_EXPO,
+	TRANSITION_EASE_OUT_EXPO,
+	TRANSITION_EASE_INOUT_EXPO,
+
+	TRANSITION_EASE_IN_CIRC,
+	TRANSITION_EASE_OUT_CIRC,
+	TRANSITION_EASE_INOUT_CIRC,
+
+	TRANSITION_TYPE_COUNT = TRANSITION_EASE_INOUT_CIRC + 1
+} Screen_Transition_Type;
 
 
 // ============================================================================================
 // Function Declarations
-void SSD1306_Init				();
+void SSD1306_Init				(bool do_rotate_180);
 bool SSD1306_Get_Update_Pending	();
 void SSD1306_Transmit_Buffer	();
 void SSD1306_Transmit_Page		(uint8_t start_column, uint8_t length, uint8_t page_start);
 bool SSD1306_Transmit_Completed	();
 
-void SSD1306_Animation_Start	(uint direction);
-void SSD1306_Animation_Tick		();
+void SSD1306_Transition_Start	(uint direction, Screen_Transition_Type type, uint frame_duration);
+void SSD1306_Transition_Tick	();
+bool SSD1306_Transition_Ongoing	();
 
 void SSD1306_Set_Font			(const uint8_t* font);
 uint SSD1306_Get_Font_Width		(void);
+uint SSD1306_Get_Font_Height	(void);
 void SSD1306_Set_Invert_Enabled	(bool invert_enabled);
 uint SSD1306_Get_Width			(void);
+uint SSD1306_Get_Height			(void);
 uint16_t SSD1306_Get_Display_Data(int16_t page, int16_t x);
 
 void SSD1306_Clear				(bool skip_while_animation);
