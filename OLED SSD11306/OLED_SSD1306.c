@@ -370,7 +370,7 @@ void SSD1306_Transition_Tick()
 
 		case TRANSITION_DIRECTION_UP:
 		case TRANSITION_DIRECTION_DOWN:
-			Position_Target = SSD1306_HEIGHT;
+			Position_Target = SSD1306_PIXEL_HEIGHT;
 			break;
 
 		default:
@@ -399,71 +399,6 @@ void SSD1306_Transition_Tick()
 
 	_Screen_Transition_Step++;
 	_Screen_Transition_Position = New_Position;
-
-
-
-
-// 	switch (_Animation_Direction)
-// 	{
-// 	case ANIMATION_DIRECTION_LEFT:
-// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
-// 			SSD1306_Buffer_Shift_Left(_Animation_Horizontal_Steps[_Animation_Step]);
-// 			_Animation_Offset_X -= _Animation_Horizontal_Steps[_Animation_Step];
-// 			_Animation_Step++;
-// 		} else if(_Animation_Offset_X > 0) {
-// 			SSD1306_Buffer_Shift_Left(1);
-// 			_Animation_Offset_X -= 1;
-// 		} else {
-// 			_Animation_Direction 	= ANIMATION_NONE;
-// 			_Animation_Offset_X 	= 0;
-// 		}
-// 		break;
-
-// 	case ANIMATION_DIRECTION_RIGHT:
-// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_HORIZONTAL) {
-// 			SSD1306_Buffer_Shift_Right(_Animation_Horizontal_Steps[_Animation_Step]);
-// 			_Animation_Offset_X += _Animation_Horizontal_Steps[_Animation_Step];
-// 			_Animation_Step++;
-// 		} else if(_Animation_Offset_X < 0) {
-// 			SSD1306_Buffer_Shift_Right(1);
-// 			_Animation_Offset_X += 1;
-// 		} else {
-// 			_Animation_Direction 	= ANIMATION_NONE;
-// 			_Animation_Offset_X 	= 0;
-// 		}
-// 		break;
-
-// 	case ANIMATION_DIRECTION_UP:
-// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
-// 			SSD1306_Buffer_Shift_Up(_Animation_Vertical_Steps[_Animation_Step]);
-// 			_Animation_Offset_Y -= _Animation_Vertical_Steps[_Animation_Step];
-// 			_Animation_Step++;
-// 		} else if(_Animation_Offset_Y > 0) {
-// 			SSD1306_Buffer_Shift_Up(1);
-// 			_Animation_Offset_Y -= 1;
-// 		} else {
-// 			_Animation_Direction = ANIMATION_NONE;
-// 			_Animation_Offset_Y = 0;
-// 		}
-// 		break;
-
-// 	case ANIMATION_DIRECTION_DOWN:
-// 		if(_Animation_Step < SSD1306_ANIMATION_STEP_COUNT_VERTICAL) {
-// 			SSD1306_Buffer_Shift_Down(_Animation_Vertical_Steps[_Animation_Step]);
-// 			_Animation_Offset_Y += _Animation_Vertical_Steps[_Animation_Step];
-// 			_Animation_Step++;
-// 		} else if(_Animation_Offset_Y < 0) {
-// 			SSD1306_Buffer_Shift_Down(1);
-// 			_Animation_Offset_Y += 1;
-// 		} else {
-// 			_Animation_Direction = ANIMATION_NONE;
-// 			_Animation_Offset_Y = 0;
-// 		}
-// 		break;
-
-// 	default:
-// 		break;
-// 	}
 }
 
 bool SSD1306_Transition_Ongoing()

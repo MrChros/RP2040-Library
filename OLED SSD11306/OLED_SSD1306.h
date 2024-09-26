@@ -24,7 +24,7 @@
 #define SSD1306_HEIGHT_32PX			0b000000
 #define SSD1306_HEIGHT_64PX			0b100000
 
-#define SSD1306_HEIGHT				SSD1306_HEIGHT_32PX
+#define SSD1306_HEIGHT				SSD1306_HEIGHT_64PX
 
 #ifndef SSD1306_HEIGHT
 #error SSD1306: Height for display has not been defined
