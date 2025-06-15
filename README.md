@@ -183,6 +183,27 @@ _None_
 ### RP2040 SDK Requirements
 * pico_stdlib
 
+## Display Library (ILI9341, ST7735 & GC9A01A)
+This is a libary to suport various RGB diplays like the ILI9341, the ST7735 and the round display GC9A01A. The library contains a bunch of files to organize the different function by type and to keep the overview. The main configuration of the library is done in the file Display_Config.h. There you set the pins for the SPI Connection, the SPI clock frequency and the define what display type is used.
+
+Very similar to the OLED SSD1306 Library, the Display Library defines a buffer for each pixel of the display and this buffer is transferred via a SPI DMA transfer to the display. From my experience, you can use quite high frequencies like 66 MHz and reach a framerate of 20 to 30 frames.
+
+You can draw directly to the buffer using calling the shapes function from the file Display_Shapes.h / Display_Shapes.c or Display_Font.h / Display_Font.c (I added some example fonts in the Fonts-subfolder). The coordinates here need to be defined in pixels. Negative coordinates or coordinates outside the display dimensions are ok - these pixels won't be rendered and won't be visible.
+
+To allow a more dynamic approach, objects can be added and these are more powerful in my opinion as the user can specify the anchor point of an object and the coordinates in pixels or percent. You want an object to be centered on the screen - no problem, set the anchor to CENTER_MIDDLE and the coordinates to BOTH_IN_PERCENT and 50, 50 - all done! It is intended to use the screen concept from the OLED also for this library, enabling an easy definition of different screens. I will add some examples later, this is an early commit for someone being intereseted in this library.
+
+In case of questions or feature requests, do not hestiate to contact me.
+
+
+### Other Library Dependencies
+* No strict dependency, but the display libray can be combinded with the Rotary Encoder Library to show interaction between user and the device.
+
+### RP2040 SDK Requirements
+* pico_stdlib
+* hardware_spi
+* hardware_dma
+* hardware_irq
+
 # Tools
 The subfolder "Tools" contains various helpful script and tools to help with projects for the RP2040. I use common Windows as my OS, simply because I am used to. If you use another OS, some scripts may need to be adjusted or re-written. I personally like batch script very much, so I use it a lot. I have no idea, if these can be converted or used in e.g. Linux or Mac directly.
 
