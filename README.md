@@ -195,6 +195,12 @@ To allow a more dynamic approach, objects can be added and these are more powerf
 In case of questions or feature requests, do not hestiate to contact me.
 
 
+### Example Description
+In the sub-folder "Example" I added a few files to show how the library needs to be called/initialized and how the initial screen needs to be called. The example also shows, how the display can be refreshed. In my examples, the library is configured to run with an SPI clock pf ~66MHz and the framerate is 25Hz. Anyhow, it is important that the transfer time of data from the RP2040 to the display is less than the repeating time of the timer (25ms in this case).
+
+To run the example, copy all files from the "Example" folder to the same folder as the rest of the library. I recommend to use the provided main.c-file initially. Then, go to the Display_Config.h file and configure the display pins and the SPI hardware unit (spi0 or spi1). The example needs the font file "Font_Victor_Mono_Regular_8x19.c" from the Fonts folder. The font file needs to be included to your CMakeLists.txt and is defined via an extern declaration in the Screen-example "Screen_Display_Menu_Main.c". The example should show three rectangles red, green and blue. Below the green square should be written "Hello World" in white. The background of the screen should be black and the red and blue square should move up and down.
+
+
 ### Other Library Dependencies
 * No strict dependency, but the display libray can be combinded with the Rotary Encoder Library to show interaction between user and the device.
 
